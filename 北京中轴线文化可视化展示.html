@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>北京中轴线景点可视化</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif;
+        }
+        
+        body {
+            background: linear-gradient(135deg, #1a2a6c, #8b0000, #d4af37);
+            color: #fff;
+            line-height: 1.6;
+            min-height: 100vh;
+            overflow-x: hidden;
+            padding: 20px;
+            position: relative;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+            position: relative;
+            z-index: 10;
+        }
+        
+        /* 语音控制 */
+        .voice-control {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1000;
+            background: rgba(10, 10, 30, 0.85);
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            border: 2px solid #d4af37;
+            box-shadow: 0 0 15px rgba(0, 0, 0, 0.7);
+            transition: all 0.3s ease;
+        }
+        
+        .voice-control:hover {
+            transform: scale(1.1);
+            background: rgba(198, 40, 40, 0.8);
+        }
+        
+        .voice-control i {
+            font-size: 28px;
+            color: #ffd700;
+        }
+        
+        .voice-info {
+            position: absolute;
+            top: -30px;
+            left: 50%;
+            transform: translateX(-50%);
+            white-space: nowrap;
+            background: rgba(10, 10, 30, 0.9);
+            padding: 5px 15px;
+            border-radius: 20px;
+            font-size: 0.9rem;
+            color: #ffd700;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .voice-control:hover .voice-info {
+            opacity: 1;
+        }
+        
+        header {
+            text-align: center;
+            padding: 30px 0;
+            position: relative;
+            z-index: 10;
+            animation: fadeInDown 1s ease-out;
+        }
+        
+        h1 {
+            font-size: 3.5rem;
+            margin-bottom: 15px;
+            text-shadow: 0 2px 15px rgba(0, 0, 0, 0.7);
+            background: linear-gradient(to right, #ffd700, #fff, #ffd700);
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            letter-spacing: 3px;
+            position: relative;
+        }
+        
+        h1::after {
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 180px;
+            height: 4px;
+            background: linear-gradient(to right, #b8860b, #ffd700, #b8860b);
+            border-radius: 2px;
+        }
+        
+        .subtitle {
+            font-size: 1.3rem;
+            max-width: 800px;
+            margin: 20px auto 30px;
+            color: #f0f0f0;
+            text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+            padding: 0 20px;
+            line-height: 1.8;
+        }
+        
+        .axis-container {
+            position: relative;
+            height: 65vh;
+            margin: 40px auto;
+            max-width: 800px;
+            display: flex;
+            justify-content: center;
+        }
+        
+        .axis-line {
+            position: absolute;
+            top: 0;
+            bottom: 0;
+            width: 10px;
+            background: linear-gradient(to bottom, #ffd700, #b8860b, #ffd700);
+            z-index: 1;
+            box-shadow: 0 0 25px rgba(255, 215, 0, 0.8);
+            border-radius: 5px;
+        }
+        
+        .markers-container {
+            position: relative;
+            height: 100%;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            align-items: center;
+            padding: 40px 0;
+        }
+        
+        .marker {
+            width: 50px;
+            height: 50px;
+            background: #c62828;
+            border: 4px solid #ffd700;
+            border-radius: 50%;
+            cursor: pointer;
+            z-index: 5;
+            transition: all 0.3s ease;
+            box-shadow: 0 0 15px rgba(198, 40, 40, 0.9);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-weight: bold;
+            color: #fff;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+            animation: pulse 2s infinite;
+        }
+        
+        .marker:hover {
+            transform: scale(1.2);
+            background: #ff5252;
+            box-shadow: 0 0 25px rgba(255, 82, 82, 1);
+            animation: none;
+        }
+        
+        .marker::after {
+            content: '';
+            position: absolute;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 3px;
+            background: #ffd700;
+            box-shadow: 0 0 12px rgba(255, 215, 0, 0.7);
+            z-index: -1;
+        }
+        
+        .north-marker::after {
+            top: 100%;
+            height: 50px;
+        }
+        
+        .south-marker::after {
+            bottom: 100%;
+            height: 50px;
+        }
+        
+        .middle-marker::after {
+            top: 100%;
+            bottom: 100%;
+            height: auto;
+        }
+        
+        .marker-info {
+            position: absolute;
+            top: 50%;
+            left: 70px;
+            transform: translateY(-50%);
+            background: rgba(10, 10, 30, 0.92);
+            padding: 25px;
+            border-radius: 12px;
+            width: 350px;
+            z-index: 20;
+            box-shadow: 0 8px 35px rgba(0, 0, 0, 0.9);
+            border: 2px solid #d4af37;
+            display: none;
+            backdrop-filter: blur(5px);
+            animation: fadeIn 0.5s ease-out;
+        }
+        
+        .marker-info h3 {
+            color: #ffd700;
+            font-size: 1.8rem;
+            margin-bottom: 15px;
+            border-bottom: 3px solid #d4af37;
+            padding-bottom: 12px;
+        }
+        
+        .marker-info p {
+            margin-bottom: 18px;
+            color: #f0f0f0;
+            font-size: 1.1rem;
+            line-height: 1.7;
+        }
+        
+        .marker-info strong {
+            color: #ffd700;
+        }
+        
+        .close-btn {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            color: #ff5252;
+            font-size: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        
+        .close-btn:hover {
+            transform: rotate(90deg);
+            color: #ffd700;
+        }
+        
+        .location-label {
+            position: absolute;
+            left: -150px;
+            color: #ffd700;
+            font-weight: bold;
+            text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+            font-size: 1.1rem;
+            width: 130px;
+            text-align: right;
+        }
+        
+        .north-label {
+            top: -15px;
+        }
+        
+        .south-label {
+            bottom: -15px;
+        }
+        
+        .attractions-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 30px;
+            margin-top: 70px;
+        }
+        
+        .attraction-card {
+            background: rgba(20, 20, 40, 0.85);
+            border-radius: 15px;
+            overflow: hidden;
+            transition: transform 0.4s, box-shadow 0.4s;
+            border: 2px solid #d4af37;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.5);
+            cursor: pointer;
+            position: relative;
+        }
+        
+        .attraction-card:hover {
+            transform: translateY(-15px);
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.7);
+        }
+        
+        .card-img {
+            height: 220px;
+            background-size: cover;
+            background-position: center;
+            position: relative;
+        }
+        
+        .card-img::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 60%;
+            background: linear-gradient(to top, rgba(10, 10, 30, 0.9), transparent);
+        }
+        
+        .card-content {
+            padding: 25px;
+        }
+        
+        .card-content h3 {
+            color: #ffd700;
+            margin-bottom: 15px;
+            font-size: 1.7rem;
+            text-align: center;
+        }
+        
+        .card-content p {
+            color: #f0f0f0;
+            font-size: 1.05rem;
+            text-align: justify;
+        }
+        
+        .speaking-indicator {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #ff5252;
+            display: none;
+            animation: pulse 1.5s infinite;
+        }
+        
+        .card-speaking .speaking-indicator {
+            display: block;
+        }
+        
+        footer {
+            text-align: center;
+            padding: 40px 0 20px;
+            margin-top: 70px;
+            color: #d4af37;
+            border-top: 2px solid rgba(212, 175, 55, 0.4);
+        }
+        
+        .intro-box {
+            background: rgba(0, 0, 0, 0.6);
+            border-radius: 15px;
+            padding: 25px;
+            margin: 25px auto 35px;
+            max-width: 900px;
+            border: 2px solid #d4af37;
+            text-align: center;
+        }
+        
+        .intro-box h2 {
+            color: #ffd700;
+            margin-bottom: 20px;
+            font-size: 2.3rem;
+        }
+        
+        .intro-box p {
+            color: #f0f0f0;
+            font-size: 1.15rem;
+            line-height: 1.8;
+            margin-bottom: 15px;
+        }
+        
+        /* 装饰元素 */
+        .decoration {
+            position: absolute;
+            z-index: 1;
+            opacity: 0.1;
+        }
+        
+        .dragon {
+            top: 50px;
+            right: 50px;
+            font-size: 15rem;
+            color: #ffd700;
+            transform: rotate(30deg);
+        }
+        
+        .pattern {
+            bottom: 100px;
+            left: 50px;
+            font-size: 12rem;
+            color: #c62828;
+            transform: rotate(-20deg);
+        }
+        
+        /* 语音提示 */
+        .voice-guide {
+            background: rgba(0, 0, 0, 0.7);
+            border: 2px solid #d4af37;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px auto;
+            max-width: 600px;
+            text-align: center;
+        }
+        
+        .voice-guide h3 {
+            color: #ffd700;
+            margin-bottom: 15px;
+        }
+        
+        /* 动画效果 */
+        @keyframes fadeInDown {
+            from {
+                opacity: 0;
+                transform: translateY(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+            to {
+                opacity: 1;
+            }
+        }
+        
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(255, 215, 0, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 15px rgba(255, 215, 0, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(255, 215, 0, 0);
+            }
+        }
+        
+        @keyframes wave {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(1.1);
+                opacity: 0.7;
+            }
+            100% {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+        
+        /* 响应式设计 */
+        @media (max-width: 992px) {
+            h1 {
+                font-size: 3rem;
+            }
+            
+            .subtitle {
+                font-size: 1.15rem;
+            }
+            
+            .axis-container {
+                height: 60vh;
+            }
+            
+            .dragon, .pattern {
+                display: none;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2.5rem;
+            }
+            
+            .subtitle {
+                font-size: 1.05rem;
+            }
+            
+            .axis-container {
+                height: 50vh;
+            }
+            
+            .attractions-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .marker-info {
+                width: 280px;
+                left: 65px;
+            }
+        }
+        
+        @media (max-width: 576px) {
+            h1 {
+                font-size: 2.2rem;
+            }
+            
+            .marker {
+                width: 40px;
+                height: 40px;
+                font-size: 0.8rem;
+            }
+            
+            .marker-info {
+                width: 240px;
+                padding: 15px;
+            }
+            
+            .marker-info h3 {
+                font-size: 1.5rem;
+            }
+            
+            .location-label {
+                left: -120px;
+                width: 110px;
+                font-size: 0.95rem;
+            }
+            
+            .voice-control {
+                top: 10px;
+                right: 10px;
+                width: 50px;
+                height: 50px;
+            }
+            
+            .voice-control i {
+                font-size: 24px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- 语音控制按钮 -->
+    <div class="voice-control" id="voiceControl">
+        <i class="fas fa-volume-up"></i>
+        <span class="voice-info">语音控制</span>
+    </div>
+    
+    <!-- 背景装饰元素 -->
+    <div class="decoration dragon">
+        <i class="fas fa-dragon"></i>
+    </div>
+    
+    <div class="decoration pattern">
+        <i class="fas fa-yin-yang"></i>
+    </div>
+    
+    <div class="container">
+        <header>
+            <h1><i class="fas fa-landmark"></i> 北京中轴线</h1>
+            <p class="subtitle">北京中轴线南起永定门，北至钟鼓楼，全长7.8公里，是古都北京的中心标志。它汇集了北京古代建筑的精髓，见证了中国历史的变迁，是世界城市建筑史上的杰作。</p>
+        </header>
+        
+        <div class="intro-box">
+            <h2><i class="fas fa-history"></i> 中轴线历史意义</h2>
+            <p>北京中轴线始建于元代，形成、完善于明清及近现代，历经750余年。这条轴线汇集了北京城市建筑的精髓，见证了中国社会的变迁。2024年，北京中轴线被列入《世界遗产名录》。作为1420年延续至今的都城规划典范，其申遗关乎历史连续性保护、国民文化认同与国际话语构建等多个方面。因此，我们必须重视文化遗产传播，将历史价值转化为可感知的现代语言。</p>
+            <p>中轴线上的建筑群以紫禁城为中心，从永定门、正阳门、天安门、故宫、景山到钟鼓楼，形成北京两翼对称、庄严肃穆的城市格局。</p>
+        </div>
+        
+        <div class="voice-guide">
+            <h3><i class="fas fa-info-circle"></i> 语音介绍</h3>
+            <p>点击景点标记或下方景点卡片，系统将进行语音播报。</p>
+        </div>
+        
+        <div class="axis-container">
+            <div class="axis-line"></div>
+            
+            <div class="markers-container">
+                <div class="marker north-marker" data-name="钟鼓楼">
+                    <div class="location-label north-label">北端起点</div>
+                    鼓
+                </div>
+                
+                <div class="marker middle-marker" data-name="万宁桥">
+                    <div class="location-label">万宁桥</div>
+                    桥
+                </div>
+                
+                <div class="marker middle-marker" data-name="景山">
+                    <div class="location-label">景山公园</div>
+                    山
+                </div>
+                
+                <div class="marker middle-marker" data-name="故宫">
+                    <div class="location-label">故宫博物院</div>
+                    宫
+                </div>
+                
+                <div class="marker middle-marker" data-name="天安门">
+                    <div class="location-label">天安门</div>
+                    门
+                </div>
+                
+                <div class="marker middle-marker" data-name="正阳门">
+                    <div class="location-label">正阳门</div>
+                    阳
+                </div>
+                
+                <div class="marker middle-marker" data-name="天坛">
+                    <div class="location-label">天坛公园</div>
+                    坛
+                </div>
+                
+                <div class="marker south-marker" data-name="永定门">
+                    <div class="location-label south-label">南端起点</div>
+                    永
+                </div>
+            </div>
+            
+            <div class="marker-info">
+                <span class="close-btn"><i class="fas fa-times"></i></span>
+                <h3 id="info-title">景点名称</h3>
+                <p id="info-desc">景点描述信息将在这里显示</p>
+                <p><strong>历史时期：</strong> <span id="info-period">元明清</span></p>
+                <p><strong>建造时间：</strong> <span id="info-year">14世纪</span></p>
+                <p><strong>文化遗产：</strong> <span id="info-heritage">世界文化遗产</span></p>
+                <div class="speaking-indicator"></div>
+            </div>
+        </div>
+        
+        <div class="attractions-grid">
+            <div class="attraction-card" data-name="故宫博物院">
+                <div class="speaking-indicator"></div>
+                <div class="card-img" style="background-image: url('https://gimg2.baidu.com/image_search/src=http%3A%2F%2Fimage109.360doc.com%2FDownloadImg%2F2025%2F01%2F0600%2F292818514_1_20250106120324339.jpeg&refer=http%3A%2F%2Fimage109.360doc.com&app=2002&size=f9999,10000&q=a80&n=0&g=0n&fmt=auto?sec=1755331979&t=79cb3a8a16a9a20c583e09c2ad6f6bb4');"></div>
+                <div class="card-content">
+                    <h3><i class="fas fa-archway"></i> 故宫博物院</h3>
+                    <p>故宫是中国明清两代的皇家宫殿，旧称紫禁城，位于北京中轴线的中心。故宫以三大殿为中心，占地面积72万平方米，有大小宫殿七十多座，房屋九千余间。1987年被列为世界文化遗产。</p>
+                </div>
+            </div>
+            
+            <div class="attraction-card" data-name="天坛公园">
+                <div class="speaking-indicator"></div>
+                <div class="card-img" style="background-image: url('https://img1.baidu.com/it/u=1001828986,320788304&fm=253&app=138&f=JPEG?w=800&h=1202');"></div>
+                <div class="card-content">
+                    <h3><i class="fas fa-torii-gate"></i> 天坛公园</h3>
+                    <p>天坛是明、清两代帝王祭祀皇天、祈五谷丰登的场所。天坛是圜丘、祈谷两坛的总称，坛墙南方北圆，象征天圆地方。主要建筑在内坛，圜丘坛在南、祈谷坛在北。1998年被列入世界文化遗产。</p>
+                </div>
+            </div>
+            
+            <div class="attraction-card" data-name="景山公园">
+                <div class="speaking-indicator"></div>
+                <div class="card-img" style="background-image: url('https://hellorfimg.zcool.cn/provider_image/large/2236110832.jpg');"></div>
+                <div class="card-content">
+                    <h3><i class="fas fa-mountain"></i> 景山公园</h3>
+                    <p>景山公园位于北京市西城区，坐落在明清北京城的中轴线上，西临北海，南与故宫神武门隔街相望，是明、清两代的御苑。公园中心的景山为堆土而成，曾是全城的制高点。</p>
+                </div>
+            </div>
+            
+            <div class="attraction-card" data-name="钟鼓楼">
+                <div class="speaking-indicator"></div>
+                <div class="card-img" style="background-image: url('https://img0.baidu.com/it/u=1355371991,762168337&fm=253&app=138&f=JPEG?w=500&h=667');"></div>
+                <div class="card-content">
+                    <h3><i class="fas fa-drum"></i> 钟鼓楼</h3>
+                    <p>钟鼓楼是元、明、清三代都城的报时中心，位于北京中轴线的最北端。两楼前后纵置，气势雄伟，是研究古代建筑史的重要实例。钟鼓楼作为时间象征，见证着北京城的历史变迁。</p>
+                </div>
+            </div>
+            
+            <div class="attraction-card" data-name="永定门">
+                <div class="speaking-indicator"></div>
+                <div class="card-img" style="background-image: url('https://qcloud.dpfile.com/pc/5la99RKwhaa5wc4Pseh_suIpLKVskROQ4UjFJCVGMkpOEcJR1KDvTAshptWfB8DB.jpg');"></div>
+                <div class="card-content">
+                    <h3><i class="fas fa-gate"></i> 永定门</h3>
+                    <p>永定门是北京外城七门中最大、最重要的城门，始建于1553年，2004年重建。是中轴线南端的起点，寓意"永远安定"。永定门城楼是北京城中轴线上的重要标志性建筑。</p>
+                </div>
+            </div>
+            
+            <div class="attraction-card" data-name="正阳门">
+                <div class="speaking-indicator"></div>
+                <div class="card-img" style="background-image: url('https://miaobi-lite.bj.bcebos.com/miaobi/5mao/b%275Lit5Zu96ZOB6YGT5Y2a54mp6aaG5LiJ5Liq6aaG5Yy65YirXzE3MzM3NzcyNjAuOTU0MzMy%27/0.png');"></div>
+                <div class="card-content">
+                    <h3><i class="fas fa-monument"></i> 正阳门</h3>
+                    <p>正阳门俗称前门，是明清北京内城的正南门。由城楼和箭楼组成，是北京城内唯一保存完好的城楼和箭楼。正阳门作为北京内城的正门，在历史上具有重要的军事防御功能。</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <footer>
+        <p><i class="fas fa-landmark"></i> 北京中轴线文化遗产调研 &copy; 2025 | 黄爽 祖力哈力帕 艾斯木巴提</p>
+    </footer>
+
+    <script>
+        // 景点数据
+        const attractions = {
+            "钟鼓楼": {
+                desc: "钟鼓楼是元、明、清三代都城的报时中心，位于北京中轴线的最北端。两楼前后纵置，气势雄伟，是研究古代建筑史的重要实例。钟楼内悬挂着中国现存体量最大、分量最重的古代铜钟，有'古钟之王'的美誉。",
+                period: "元朝",
+                year: "1272年",
+                heritage: "全国重点文物保护单位"
+            },
+            "万宁桥": {
+                desc: "万宁桥又称后门桥，始建于元代，是北京中轴线上重要的水利设施和交通枢纽。桥体结构坚固，是北京现存最古老的石拱桥之一。桥下是著名的积水潭，元代时是京杭大运河的北端点，曾见证无数漕运船只往来。",
+                period: "元朝",
+                year: "1285年",
+                heritage: "全国重点文物保护单位"
+            },
+            "景山": {
+                desc: "景山位于北京城中心，是元明清三代的皇家园林。山上的万春亭是俯瞰故宫全景的最佳地点，中轴线在此达到最高点。景山由挖护城河的泥土堆积而成，明代称为'万岁山'，清代改称'景山'。",
+                period: "明朝",
+                year: "1420年",
+                heritage: "全国重点文物保护单位"
+            },
+            "故宫": {
+                desc: "故宫，又称紫禁城，是明清两代的皇家宫殿，世界上现存规模最大、保存最完整的木质结构古建筑群。占地72万平方米，有大小宫殿七十多座。故宫的建筑布局严格遵循封建礼制，前朝后寝，左祖右社，体现了中国古代建筑艺术的最高成就。",
+                period: "明朝",
+                year: "1420年",
+                heritage: "世界文化遗产"
+            },
+            "天安门": {
+                desc: "天安门是明清两代皇城的正门，始建于1417年。1949年毛泽东在此宣布中华人民共和国成立，成为国家的象征之一。天安门城楼高34.7米，下部是汉白玉须弥座，上部是重檐歇山顶城楼，整体气势恢宏。",
+                period: "明朝",
+                year: "1417年",
+                heritage: "全国重点文物保护单位"
+            },
+            "正阳门": {
+                desc: "正阳门俗称前门，是明清北京内城的正南门。由城楼和箭楼组成，是北京城内唯一保存完好的城楼和箭楼。正阳门高42米，是北京所有城门中最高大的一座，体现了古代城门建筑的精华。",
+                period: "明朝",
+                year: "1439年",
+                heritage: "全国重点文物保护单位"
+            },
+            "天坛": {
+                desc: "天坛是明清两代皇帝祭天、祈谷的场所，是中国现存最大的古代祭祀性建筑群。主要建筑有祈年殿、皇穹宇、圜丘坛等。祈年殿是三重檐圆形攒尖顶建筑，高38米，直径32米，是中国古代木结构建筑的典范。",
+                period: "明朝",
+                year: "1420年",
+                heritage: "世界文化遗产"
+            },
+            "永定门": {
+                desc: "永定门是北京外城七门中最大、最重要的城门，始建于1553年，2004年重建。是中轴线南端的起点，寓意'永远安定'。永定门城楼为重檐歇山顶，灰筒瓦绿琉璃剪边，是北京城中轴线上的重要标志性建筑。",
+                period: "明朝",
+                year: "1553年",
+                heritage: "北京市文物保护单位"
+            },
+            "故宫博物院": {
+                desc: "故宫是中国明清两代的皇家宫殿，旧称紫禁城，位于北京中轴线的中心。故宫以三大殿为中心，占地面积72万平方米，有大小宫殿七十多座，房屋九千余间。1987年被列为世界文化遗产。"
+            },
+            "天坛公园": {
+                desc: "天坛是明、清两代帝王祭祀皇天、祈五谷丰登的场所。天坛是圜丘、祈谷两坛的总称，坛墙南方北圆，象征天圆地方。主要建筑在内坛，圜丘坛在南、祈谷坛在北。1998年被列入世界文化遗产。"
+            },
+            "景山公园": {
+                desc: "景山公园位于北京市西城区，坐落在明清北京城的中轴线上，西临北海，南与故宫神武门隔街相望，是明、清两代的御苑。公园中心的景山为堆土而成，曾是全城的制高点。"
+            }
+        };
+        
+        // 获取DOM元素
+        const markers = document.querySelectorAll('.marker');
+        const infoBox = document.querySelector('.marker-info');
+        const infoTitle = document.getElementById('info-title');
+        const infoDesc = document.getElementById('info-desc');
+        const infoPeriod = document.getElementById('info-period');
+        const infoYear = document.getElementById('info-year');
+        const infoHeritage = document.getElementById('info-heritage');
+        const closeBtn = document.querySelector('.close-btn');
+        const voiceControl = document.getElementById('voiceControl');
+        const attractionCards = document.querySelectorAll('.attraction-card');
+        
+        // 语音合成对象
+        let speech = null;
+        let isSpeaking = false;
+        let currentSpeakingElement = null;
+        
+        // 朗读文本
+        function speakText(text, element) {
+            // 停止当前朗读
+            stopSpeaking();
+            
+            // 创建新的语音合成对象
+            speech = new SpeechSynthesisUtterance(text);
+            speech.lang = 'zh-CN'; // 设置中文
+            speech.rate = 0.95; // 稍微慢一点的语速
+            speech.pitch = 1; // 正常音高
+            speech.volume = 1; // 最大音量
+            
+            // 开始朗读
+            window.speechSynthesis.speak(speech);
+            isSpeaking = true;
+            
+            // 设置当前朗读元素
+            currentSpeakingElement = element;
+            
+            // 添加朗读中样式
+            if (currentSpeakingElement) {
+                currentSpeakingElement.classList.add('card-speaking');
+            }
+            
+            // 朗读结束事件
+            speech.onend = function() {
+                isSpeaking = false;
+                if (currentSpeakingElement) {
+                    currentSpeakingElement.classList.remove('card-speaking');
+                    currentSpeakingElement = null;
+                }
+            };
+        }
+        
+        // 停止朗读
+        function stopSpeaking() {
+            if (isSpeaking) {
+                window.speechSynthesis.cancel();
+                isSpeaking = false;
+                
+                if (currentSpeakingElement) {
+                    currentSpeakingElement.classList.remove('card-speaking');
+                    currentSpeakingElement = null;
+                }
+            }
+        }
+        
+        // 为每个标记添加点击事件
+        markers.forEach(marker => {
+            marker.addEventListener('click', function() {
+                const attractionName = this.getAttribute('data-name');
+                const attractionData = attractions[attractionName];
+                
+                infoTitle.textContent = attractionName;
+                infoDesc.textContent = attractionData.desc;
+                infoPeriod.textContent = attractionData.period;
+                infoYear.textContent = attractionData.year;
+                infoHeritage.textContent = attractionData.heritage;
+                
+                // 定位信息框在标记旁边
+                const markerRect = this.getBoundingClientRect();
+                const containerRect = this.closest('.axis-container').getBoundingClientRect();
+                const topPosition = markerRect.top - containerRect.top + (markerRect.height / 2);
+                
+                infoBox.style.top = `${topPosition}px`;
+                infoBox.style.display = 'block';
+                
+                // 构建朗读内容
+                const speechContent = `${attractionName}，${attractionData.desc}。历史时期：${attractionData.period}，建造时间：${attractionData.year}，文化遗产：${attractionData.heritage}`;
+                
+                // 朗读内容
+                speakText(speechContent, infoBox);
+            });
+        });
+        
+        // 为景点卡片添加点击事件
+        attractionCards.forEach(card => {
+            card.addEventListener('click', function() {
+                const attractionName = this.getAttribute('data-name');
+                const attractionData = attractions[attractionName];
+                const title = this.querySelector('h3').textContent;
+                const description = this.querySelector('p').textContent;
+                
+                // 构建朗读内容
+                const speechContent = `${title}，${description}`;
+                
+                // 朗读内容
+                speakText(speechContent, this);
+            });
+        });
+        
+        // 关闭信息框
+        closeBtn.addEventListener('click', function() {
+            infoBox.style.display = 'none';
+            stopSpeaking();
+        });
+        
+        // 点击页面其他地方关闭信息框
+        document.addEventListener('click', function(event) {
+            if (!event.target.closest('.marker') && !event.target.closest('.marker-info') && infoBox.style.display === 'block') {
+                infoBox.style.display = 'none';
+                stopSpeaking();
+            }
+        });
+        
+        // 语音控制按钮
+        voiceControl.addEventListener('click', function() {
+            if (isSpeaking) {
+                stopSpeaking();
+                this.innerHTML = '<i class="fas fa-volume-up"></i><span class="voice-info">语音控制</span>';
+            } else {
+                if (currentSpeakingElement) {
+                    // 重新朗读当前内容
+                    const content = currentSpeakingElement.classList.contains('attraction-card') ? 
+                        `${currentSpeakingElement.querySelector('h3').textContent}，${currentSpeakingElement.querySelector('p').textContent}` : 
+                        `${infoTitle.textContent}，${infoDesc.textContent}。历史时期：${infoPeriod.textContent}，建造时间：${infoYear.textContent}，文化遗产：${infoHeritage.textContent}`;
+                    
+                    speakText(content, currentSpeakingElement);
+                    this.innerHTML = '<i class="fas fa-volume-mute"></i><span class="voice-info">停止朗读</span>';
+                }
+            }
+        });
+        
+        // 初始加载时显示第一个景点信息
+        setTimeout(() => {
+            markers[0].click();
+        }, 1500);
+    </script>
+</body>
+</html>
